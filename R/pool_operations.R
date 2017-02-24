@@ -13,18 +13,18 @@ addPool <- function(poolId, vmSize, ...){
 
   autoscaleFormula <- ""
   if(!is.null(args$autoscaleFormula)){
-    autoscaleFormula <- autoscaleFormula
-  }
-
-  if(!is.null(args$targetDedicated) || !args$targetDedicated == -1){
-    autoscaleFormula <- sprintf("$TargetDedicated = %i", args$targetDedicated)
+    autoscaleFormula <- args$autoscaleFormula
   }
 
   stopifnot(grepl("^([a-zA-Z0-9]|[-]|[_]){1,64}$", poolId))
 
   batchCredentials <- getBatchCredentials()
 
-  commands <- c(.getGithubInstallationCommand(packages))
+  commands <- c("sed -i -e 's/Defaults    requiretty.*/ #Defaults    requiretty/g' /etc/sudoers",
+                "export PATH=/anaconda/envs/py35/bin:$PATH",
+                "sudo env PATH=$PATH pip install --no-dependencies blobxfer")
+
+  commands <- paste0(.linuxWrapCommands(commands), ";", .getGithubInstallationCommand(packages))
 
   body = list(vmSize = vmSize,
               id = poolId,
@@ -92,7 +92,7 @@ resizePool <- function(poolId, ...){
   autoscaleFormula <- ""
 
   if(!is.null(args$autoscaleFormula)){
-    autoscaleFormula <- args$autoscaleFormula
+    autoscaleFormula <- .getFormula(args$autoscaleFormula)
   }
 
   if(!is.null(args$targetDedicated)){
