@@ -40,6 +40,7 @@ addPool <- function(poolId, vmSize, ...){
                                     version = "latest"),
                 nodeAgentSKUId ="batch.node.centos 7"),
               enableAutoScale = TRUE,
+              maxTasksPerNode:4,
               autoScaleFormula = autoscaleFormula)
 
   size <- nchar(jsonlite::toJSON(body, method="C", auto_unbox = TRUE))
