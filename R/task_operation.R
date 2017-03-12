@@ -140,6 +140,58 @@ addTaskMerge <- function(jobId, taskId = "default", dependsOn, ...){
   callBatchService(request, batchCredentials, body)
 }
 
+addTask2 <- function(jobId, taskId = "default", ...){
+  batchCredentials <- getBatchCredentials()
+  storageCredentials <- getStorageCredentials()
+
+  args <- list(...)
+  .doAzureBatchGlobals <- args$envir
+  argResourceFiles <- args$resourceFiles
+  argCommands <- args$commands
+  argSettings <- args$settings
+
+  resourceFiles <- c()
+  if(!is.null(argResourceFiles)){
+    resourceFiles <- c(resourceFiles, argResourceFiles)
+  }
+
+  settings <- list()
+  if(!is.null(argSettings)){
+    settings <- list(argSettings)
+  }
+
+  commands <- c()
+  if(!is.null(argCommands)){
+    commands <- argCommands
+  }
+
+  body = list(id = taskId,
+              commandLine = .linuxWrapCommands(commands),
+              userIdentity = list(
+                autoUser = list(
+                  scope = "task",
+                  elevationLevel = "admin"
+                )
+              ),
+              resourceFiles = resourceFiles,
+              environmentSettings = settings)
+
+  size <- nchar(rjson::toJSON(body, method="C"))
+
+  headers <- c()
+  headers['Content-Length'] <- size
+  headers['Content-Type'] <- "application/json;odata=minimalmetadata"
+
+  request <- AzureRequest$new(
+    method = "POST",
+    path = paste0("/jobs/", jobId, "/tasks"),
+    query = list("api-version" = apiVersion),
+    headers = headers
+  )
+
+  callBatchService(request, batchCredentials, body)
+}
+
 listTask <- function(jobId, ...){
   batchCredentials <- getBatchCredentials()
 
