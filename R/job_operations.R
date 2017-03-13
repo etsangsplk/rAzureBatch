@@ -2,11 +2,15 @@ addJob <- function(jobId, ...){
   headers <- character()
   args <- list(...)
   config <- args$config
+  resourceFiles <- args$resourceFiles
+
+  raw <- FALSE
+  if(!is.null(args$raw)){
+    raw <- args$raw
+  }
 
   pool <- config$batchAccount$pool
   stopifnot(!is.null(pool))
-
-  startupFolderName <- "startup"
 
   batchCredentials <- getBatchCredentials()
   storageCredentials <- getStorageCredentials()
@@ -14,21 +18,16 @@ addJob <- function(jobId, ...){
   packages <- args$packages
   commands <- c("ls")
 
-  createContainer(jobId)
-  uploadData(jobId, system.file(startupFolderName, "splitter.R", package="rAzureBatch"))
-  uploadData(jobId, system.file(startupFolderName, "worker.R", package="rAzureBatch"))
-  uploadData(jobId, system.file(startupFolderName, "merger.R", package="rAzureBatch"))
-
-  sasToken <- constructSas("2016-11-30", "r", "c", jobId, storageCredentials$key)
-  resourceFiles <- list(generateResourceFile(storageCredentials$name, jobId, "splitter.R", sasToken),
-                        generateResourceFile(storageCredentials$name, jobId, "worker.R", sasToken),
-                        generateResourceFile(storageCredentials$name, jobId, "merger.R", sasToken))
-
   body = list(id=jobId,
               poolInfo=list("poolId" = pool$name),
               jobPreparationTask = list(
                 commandLine = .linuxWrapCommands(commands),
-                runElevated = TRUE,
+                userIdentity = list(
+                  autoUser = list(
+                    scope = "task",
+                    elevationLevel = "admin"
+                  )
+                ),
                 waitForSuccess = TRUE,
                 resourceFiles = resourceFiles,
                 constraints = list(
@@ -49,7 +48,7 @@ addJob <- function(jobId, ...){
     headers = headers
   )
 
-  callBatchService(request, batchCredentials, body)
+  callBatchService(request, batchCredentials, body, contentType = raw)
 }
 
 getJob <- function(jobId){
@@ -67,10 +66,14 @@ getJob <- function(jobId){
 deleteJob <- function(jobId){
   batchCredentials <- getBatchCredentials()
 
+  headers <- c()
+  headers['Content-Length'] <- '0'
+  
   request <- AzureRequest$new(
     method = "DELETE",
     path = paste0("/jobs/", jobId),
-    query = list("api-version" = apiVersion)
+    query = list("api-version" = apiVersion),
+    headers = headers
   )
 
   callBatchService(request, batchCredentials)
